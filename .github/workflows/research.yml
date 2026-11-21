@@ -1,0 +1,50 @@
+name: Weekly equity research
+
+on:
+  workflow_dispatch:
+    inputs:
+      ai_summary:
+        description: 'Add OpenAI commentary (requires OPENAI_API_KEY repository secret; API charges may apply)'
+        type: boolean
+        default: false
+  schedule:
+    # Mondays at 12:15 UTC = Mondays at 17:45 IST, after the Indian cash-market close.
+    - cron: '15 12 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run offline unit tests
+        run: python -m pytest -q
+      - name: Screen configured stocks (no trading; optional AI commentary)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          USE_AI: ${{ inputs.ai_summary }}
+        run: |
+          if [ "$USE_AI" = "true" ]; then
+            python -m stock_agent.cli --output-dir reports --ai-summary
+          else
+            python -m stock_agent.cli --output-dir reports
+          fi
+      - name: Publish Markdown and JSON reports as downloadable run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: equity-research-${{ github.run_number }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
