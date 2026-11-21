@@ -40,6 +40,12 @@ jobs:
           else
             python -m stock_agent.cli --output-dir reports
           fi
+      - name: Email research digest to configured Gmail inbox
+        if: success()
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python -m stock_agent.email_report --output-dir reports
       - name: Publish Markdown and JSON reports as downloadable run artifacts
         if: always()
         uses: actions/upload-artifact@v4
